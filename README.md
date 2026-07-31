@@ -58,3 +58,22 @@ This is a Telegram bot that acts as an autonomous project manager for your team.
 - **Multi-Project Support**: Right now, tasks are partitioned by `chat_id`. We could add namespaces or tags for different sub-projects in the same chat.
 - **Better Error Recovery**: If OpenAI is down or rate-limited, the bot should gracefully inform the user rather than failing silently.
 - **Webhooks**: Switch from long-polling to Webhooks for production deployment.
+
+## Step-by-Step Testing Procedure
+
+1. **Start the Bot**: Run `python bot.py` in your terminal. You should see `Bot started...` indicating it's listening.
+2. **Add to a Group**: Create a new test group on Telegram and add your bot to it.
+3. **Grant Admin Privileges (Optional but Recommended)**: This ensures the bot can see all messages if you want it to passively monitor. Otherwise, you must explicitly tag it (`@botusername`).
+4. **Create a Task**: Send a message in the group mentioning the bot. For example: 
+   `@yourbotname Please create a task for @username to setup the database.`
+5. **Verify Creation**: The bot will reply confirming the task was created and provide its ID.
+6. **Update Status**: You can update the task status by sending:
+   `@yourbotname Mark task 1 as IN_PROGRESS.`
+7. **List Tasks**: Check the current state of tasks:
+   `@yourbotname What tasks do we have pending?`
+8. **Test Proactive Pulling (Admin Command)**: Since proactive pulling is scheduled to run every 12 hours, you can force it to run immediately by sending:
+   `/trigger_pull`
+   *(Note: The bot only pings for `IN_PROGRESS` tasks that are older than 24 hours, so for a quick test you might need to adjust the hours parameter in `bot.py` or manually edit the database date).*
+9. **Test Status Reporting (Admin Command)**: To test the daily status report immediately, send:
+   `/trigger_report`
+   The bot will drop a summary of the current state of all tasks.
