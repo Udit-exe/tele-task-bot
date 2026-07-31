@@ -38,18 +38,37 @@ This is a Telegram bot that acts as an autonomous project manager for your team.
    ```env
    TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
    OPENAI_API_KEY=your_openai_api_key_here
-   GEMINI_API_KEY=your_gemini_api_key_here_optional
+   GEMINI_API_KEY=your_gemini_api_key_here          # Optional
    ```
+   > **Note:** You need at least one of `OPENAI_API_KEY` or `GEMINI_API_KEY`. Both are optional individually, but the bot requires at least one to function. See the **LLM Fallback Mechanism** section below for details.
 
 5. **Run the bot**:
    ```bash
    python bot.py
    ```
 
+## LLM Fallback Mechanism
+
+The bot supports **dual LLM providers** with automatic failover:
+
+| Priority | Provider | Model | Key Required |
+|----------|----------|-------|--------------|
+| 1st | OpenAI | `gpt-4o` | `OPENAI_API_KEY` (optional) |
+| 2nd | Google Gemini | `gemini-flash-latest` | `GEMINI_API_KEY` (optional) |
+
+**How it works:**
+1. On every request, the bot first attempts to call **OpenAI (gpt-4o)**.
+2. If OpenAI fails for any reason (invalid key, rate limit, billing issue, network error), it **automatically falls back to Google Gemini**.
+3. If the OpenAI key is not set at all, the bot skips it entirely and goes straight to Gemini.
+4. If neither key is set, the bot returns an error message.
+
+This means you can run the bot with **just a free Gemini API key** for testing, or with **just an OpenAI key** for production, or with **both** for maximum reliability.
+
 ## Design Decisions & Trade-offs
 
 - **SQLite for Storage**: We chose SQLite because it requires zero setup for the reviewer. It handles the low throughput of a Telegram group perfectly well. Trade-off: It's not suited for horizontal scaling if we were to serve thousands of groups, but perfectly adequate for a single or handful of projects.
-- **Function Calling over Custom Parsers**: We use OpenAI's native tool calling for task operations. This is far more robust than attempting to parse natural language or regex. The agent automatically infers parameters like `description` and `assignee`.
+- **Function Calling over Custom Parsers**: We use the LLM's native tool/function calling for task operations. This is far more robust than attempting to parse natural language or regex. The agent automatically infers parameters like `description` and `assignee`.
+- **LLM Fallback**: Rather than being locked into a single paid provider, we use LiteLLM with explicit per-provider API key routing. This keeps the bot functional even if one provider is down or the key expires.
 - **Proactive Jobs**: The bot uses `python-telegram-bot`'s `JobQueue` to run periodic tasks (e.g., checking for stale `IN_PROGRESS` tasks). We use the LLM to draft these messages so they sound natural and polite, rather than a robotic cron-job output.
 - **Context Window**: We store a rolling window of the last 10 messages per chat. This ensures the bot can answer contextual follow-up questions without bloating the prompt and consuming excess tokens.
 
