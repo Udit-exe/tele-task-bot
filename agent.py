@@ -79,7 +79,7 @@ tools = [
 ]
 
 # We will try OpenAI first, and if it fails (e.g. rate limit, bad key), fallback to Gemini.
-FALLBACK_MODELS = [{"model": "gemini/gemini-1.5-flash-latest"}]
+FALLBACK_MODELS = [{"model": "gemini/gemini-flash-latest"}]
 if os.getenv("GEMINI_API_KEY"):
     FALLBACK_MODELS[0]["api_key"] = os.getenv("GEMINI_API_KEY")
 

@@ -11,7 +11,7 @@ This is a Telegram bot that acts as an autonomous project manager for your team.
 
 ## Tech Stack
 - **Python 3** with `python-telegram-bot` for async Telegram API integration.
-- **LiteLLM** for LLM orchestration, supporting automatic fallback from OpenAI (gpt-4o) to Gemini (gemini-1.5-flash) if the OpenAI key fails or hits a rate limit.
+- **LiteLLM** for LLM orchestration, supporting automatic fallback from OpenAI (gpt-4o) to Gemini (gemini-flash-latest) if the OpenAI key fails or hits a rate limit.
 - **SQLite** for lightweight, dependency-free state management.
 
 ## Setup Instructions
