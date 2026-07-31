@@ -79,7 +79,10 @@ tools = [
 ]
 
 # We will try OpenAI first, and if it fails (e.g. rate limit, bad key), fallback to Gemini.
-FALLBACK_MODELS = ["gemini/gemini-1.5-flash"]
+FALLBACK_MODELS = [{"model": "gemini/gemini-1.5-flash-latest"}]
+if os.getenv("GEMINI_API_KEY"):
+    FALLBACK_MODELS[0]["api_key"] = os.getenv("GEMINI_API_KEY")
+
 
 async def call_llm_with_fallback(messages, use_tools=False):
     kwargs = {
