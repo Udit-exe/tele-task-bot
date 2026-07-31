@@ -11,7 +11,7 @@ This is a Telegram bot that acts as an autonomous project manager for your team.
 
 ## Tech Stack
 - **Python 3** with `python-telegram-bot` for async Telegram API integration.
-- **OpenAI API (gpt-4o)** for agentic behavior and function calling.
+- **LiteLLM** for LLM orchestration, supporting automatic fallback from OpenAI (gpt-4o) to Gemini (gemini-1.5-flash) if the OpenAI key fails or hits a rate limit.
 - **SQLite** for lightweight, dependency-free state management.
 
 ## Setup Instructions
@@ -38,6 +38,7 @@ This is a Telegram bot that acts as an autonomous project manager for your team.
    ```env
    TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
    OPENAI_API_KEY=your_openai_api_key_here
+   GEMINI_API_KEY=your_gemini_api_key_here_optional
    ```
 
 5. **Run the bot**:
@@ -56,7 +57,6 @@ This is a Telegram bot that acts as an autonomous project manager for your team.
 
 - **Reminders and Snoozing**: Allow users to say "remind me tomorrow" and have the bot schedule a specific ping.
 - **Multi-Project Support**: Right now, tasks are partitioned by `chat_id`. We could add namespaces or tags for different sub-projects in the same chat.
-- **Better Error Recovery**: If OpenAI is down or rate-limited, the bot should gracefully inform the user rather than failing silently.
 - **Webhooks**: Switch from long-polling to Webhooks for production deployment.
 
 ## Step-by-Step Testing Procedure

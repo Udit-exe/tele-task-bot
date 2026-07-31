@@ -1,11 +1,12 @@
 import os
 import json
-from openai import AsyncOpenAI
+import logging
+import litellm
 from dotenv import load_dotenv
 import database as db
 
 load_dotenv()
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are an autonomous, agentic Project Manager bot on Telegram. 
 Your job is to manage tasks for this group chat, track status, and keep everyone aligned.
@@ -77,6 +78,22 @@ tools = [
     }
 ]
 
+# We will try OpenAI first, and if it fails (e.g. rate limit, bad key), fallback to Gemini.
+FALLBACK_MODELS = ["gemini/gemini-1.5-flash"]
+
+async def call_llm_with_fallback(messages, use_tools=False):
+    kwargs = {
+        "model": "gpt-4o",
+        "messages": messages,
+        "fallbacks": FALLBACK_MODELS
+    }
+    if use_tools:
+        kwargs["tools"] = tools
+        kwargs["tool_choice"] = "auto"
+        
+    response = await litellm.acompletion(**kwargs)
+    return response
+
 async def process_message(chat_id: str, message: str, message_history: list = None):
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     if message_history:
@@ -84,20 +101,17 @@ async def process_message(chat_id: str, message: str, message_history: list = No
     messages.append({"role": "user", "content": message})
 
     try:
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            tools=tools,
-            tool_choice="auto"
-        )
+        response = await call_llm_with_fallback(messages, use_tools=True)
     except Exception as e:
+        logger.error(f"Error contacting AI: {e}")
         return f"Error contacting AI: {e}"
 
     response_message = response.choices[0].message
     tool_calls = response_message.tool_calls
     
     if tool_calls:
-        messages.append(response_message)
+        # Append the assistant's tool call message
+        messages.append(response_message.model_dump())
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             try:
@@ -128,12 +142,10 @@ async def process_message(chat_id: str, message: str, message_history: list = No
             })
             
         try:
-            final_response = await client.chat.completions.create(
-                model="gpt-4o",
-                messages=messages
-            )
+            final_response = await call_llm_with_fallback(messages, use_tools=False)
             return final_response.choices[0].message.content
         except Exception as e:
+            logger.error(f"Error contacting AI after tool call: {e}")
             return f"Error contacting AI after tool call: {e}"
 
     return response_message.content
@@ -144,12 +156,10 @@ async def draft_proactive_update(tasks: list) -> str:
         {"role": "user", "content": f"The following tasks are IN_PROGRESS and haven't been updated recently: {json.dumps(tasks)}\nDraft a concise, friendly message asking the assignees for a status update. If there's no assignee, ask the team in general."}
     ]
     try:
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages
-        )
+        response = await call_llm_with_fallback(messages, use_tools=False)
         return response.choices[0].message.content
     except Exception as e:
+        logger.error(f"Proactive update error: {e}")
         return ""
 
 async def draft_status_report(tasks: list) -> str:
@@ -158,10 +168,8 @@ async def draft_status_report(tasks: list) -> str:
         {"role": "user", "content": f"Here are all the tasks for the project: {json.dumps(tasks)}\nDraft a concise daily status report summarizing what is DONE, what is IN_PROGRESS, and what is TODO. Call out the assignees if possible."}
     ]
     try:
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages
-        )
+        response = await call_llm_with_fallback(messages, use_tools=False)
         return response.choices[0].message.content
     except Exception as e:
+        logger.error(f"Status report error: {e}")
         return ""
