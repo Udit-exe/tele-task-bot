@@ -78,24 +78,46 @@ tools = [
     }
 ]
 
-# We will try OpenAI first, and if it fails (e.g. rate limit, bad key), fallback to Gemini.
-FALLBACK_MODELS = [{"model": "gemini/gemini-flash-latest"}]
-if os.getenv("GEMINI_API_KEY"):
-    FALLBACK_MODELS[0]["api_key"] = os.getenv("GEMINI_API_KEY")
+# Provider configuration: try OpenAI first, then Gemini.
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
 
 async def call_llm_with_fallback(messages, use_tools=False):
-    kwargs = {
-        "model": "gpt-4o",
-        "messages": messages,
-        "fallbacks": FALLBACK_MODELS
-    }
+    """Try OpenAI first. If it fails for any reason, fall back to Gemini."""
+    kwargs = {"messages": messages}
     if use_tools:
         kwargs["tools"] = tools
         kwargs["tool_choice"] = "auto"
-        
-    response = await litellm.acompletion(**kwargs)
-    return response
+
+    # --- Attempt 1: OpenAI ---
+    if OPENAI_KEY:
+        try:
+            response = await litellm.acompletion(
+                model="gpt-4o",
+                api_key=OPENAI_KEY,
+                **kwargs,
+            )
+            return response
+        except Exception as e:
+            logger.warning(f"OpenAI failed ({type(e).__name__}), falling back to Gemini: {e}")
+
+    # --- Attempt 2: Gemini ---
+    if GEMINI_KEY:
+        try:
+            response = await litellm.acompletion(
+                model="gemini/gemini-flash-latest",
+                api_key=GEMINI_KEY,
+                **kwargs,
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Gemini also failed: {e}")
+            raise
+
+    raise RuntimeError(
+        "No working AI provider. Set OPENAI_API_KEY or GEMINI_API_KEY in your .env file."
+    )
 
 async def process_message(chat_id: str, message: str, message_history: list = None):
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
